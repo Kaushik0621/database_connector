@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Manage Database Entries</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5 text-center">
+        <h2 class="mb-4">Database Management</h2>
+        <div class="card p-4">
+            <p>Use the buttons below to add or view materials and colors in the database.</p>
+            <a href="{{ url_for('add_material') }}" class="btn btn-success btn-lg mb-3">Add Material</a>
+            <a href="{{ url_for('add_color') }}" class="btn btn-info btn-lg mb-3">Add Color</a><br>
+            <a href="{{ url_for('view_materials') }}" class="btn btn-primary btn-lg mb-3">View Materials</a>
+            <a href="{{ url_for('view_colors') }}" class="btn btn-primary btn-lg">View Colors</a>
+        </div>
+    </div>
+</body>
+</html>

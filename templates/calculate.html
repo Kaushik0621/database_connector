@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculate Total Cost</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="text-center">Calculate Total Cost for Combinations</h2>
+        {% if combinations %}
+            <form action="{{ url_for('calculate') }}" method="post">
+                <ul class="list-group">
+                    {% for combo in combinations %}
+                        <li class="list-group-item">
+                            <strong>Combination:</strong> {{ combo.material_company }} - {{ combo.material_texture }} and {{ combo.color_company }} - {{ combo.color }}
+                            <div class="form-group mt-2">
+                                <label for="area_{{ loop.index }}">Enter Area (sq ft) for this combination:</label>
+                                <input type="number" id="area_{{ loop.index }}" name="area" step="0.01" class="form-control" required>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+                <button type="submit" class="btn btn-primary mt-3">Calculate</button>
+            </form>
+        {% endif %}
+        
+        {% if total_costs %}
+            <h3 class="mt-4">Previous Calculations:</h3>
+            <ul class="list-group">
+                {% for cost in total_costs %}
+                    <li class="list-group-item">
+                        Combination: {{ cost.material_company }} - {{ cost.material_texture }} and {{ cost.color_company }} - {{ cost.color }} - Area: {{ cost.area }} sq ft - Total Cost: ${{ cost.total_cost }}
+                        <form action="{{ url_for('delete_calculation', index=loop.index0) }}" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-danger btn-sm float-right">Delete</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        
+        <a href="{{ url_for('index') }}" class="btn btn-secondary mt-3">Back to Create More Combinations</a>
+    </div>
+</body>
+</html>

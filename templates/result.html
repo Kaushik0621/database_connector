@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Total Costs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="text-center">Total Costs</h2>
+        <ul class="list-group">
+            {% for cost in total_costs %}
+                <li class="list-group-item">
+                    Combination: {{ cost.material_company }} - {{ cost.material_texture }} and {{ cost.color_company }} - {{ cost.color }}
+                    - Area: {{ cost.area }} sq ft - Total Cost: ${{ cost.total_cost }}
+                </li>
+            {% endfor %}
+        </ul>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary mt-3">Back to Create More Combinations</a>
+    </div>
+</body>
+</html>
