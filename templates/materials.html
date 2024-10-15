@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Coating Materials</h2>
+<a href="{{ url_for('add_material') }}">
+    <button>Add New Material</button>
+</a>
+<form method="POST" action="{{ url_for('delete_material') }}">
+    <table>
+        <tr>
+            <th>Select</th>
+            <th>Name</th>
+            <th>Price per Unit (per m²)</th>
+        </tr>
+        {% for material in materials %}
+        <tr>
+            <td><input type="checkbox" name="delete_ids" value="{{ material.id }}"></td>
+            <td>{{ material.name }}</td>
+            <td>{{ material.price_per_unit }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <input type="submit" value="Delete Selected Materials">
+</form>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Add New System</h2>
+<form method="POST">
+    <label for="name">System Name:</label>
+    <input type="text" id="name" name="name" required>
+    
+    <h3>Select Materials and Specify Ratios:</h3>
+    {% for material in materials %}
+        <input type="checkbox" name="materials" value="{{ material.id }}" id="material_{{ material.id }}" onclick="toggleInput({{ material.id }})">
+        <label for="material_{{ material.id }}">{{ material.name }} (Price: {{ material.price_per_unit }})</label>
+        <input type="number" step="0.01" name="ratio_{{ material.id }}" id="ratio_{{ material.id }}" style="display:none;" placeholder="Enter ratio">
+        <br>
+    {% endfor %}
+    
+    <input type="submit" value="Add System">
+</form>
+<script>
+function toggleInput(id) {
+    var checkbox = document.getElementById('material_' + id);
+    var ratioInput = document.getElementById('ratio_' + id);
+    if (checkbox.checked) {
+        ratioInput.style.display = 'inline';
+    } else {
+        ratioInput.style.display = 'none';
+        ratioInput.value = '';
+    }
+}
+</script>
+{% endblock %}

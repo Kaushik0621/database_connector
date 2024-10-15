@@ -1,110 +1,125 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-import os
+from sqlalchemy import text
 
 app = Flask(__name__)
-app.secret_key = 'supersecretkey'  # Needed for session management
-
-# Define the absolute paths for both databases in the instance folder
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_BINDS'] = {
-    'material': f'sqlite:///{os.path.join(basedir, "instance", "material.db")}',
-    'color': f'sqlite:///{os.path.join(basedir, "instance", "color.db")}'
-}
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///coating_systems.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Define the Material model for material.db
-class Material(db.Model):
-    __bind_key__ = 'material'
-    id = db.Column(db.Integer, primary_key=True)
-    company_name = db.Column(db.String(50), nullable=False)
-    material_texture = db.Column(db.String(50), nullable=False)
-    price = db.Column(db.Float, nullable=False)
+# Association table for many-to-many relationship with extra data (ratio)
+system_materials = db.Table('system_materials',
+    db.Column('system_id', db.Integer, db.ForeignKey('system.id')),
+    db.Column('material_id', db.Integer, db.ForeignKey('material.id')),
+    db.Column('ratio', db.Float)
+)
 
-# Define the Color model for color.db
-class Color(db.Model):
-    __bind_key__ = 'color'
+class Material(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    company_name = db.Column(db.String(50), nullable=False)
-    color = db.Column(db.String(50), nullable=False)
-    price = db.Column(db.Float, nullable=False)
+    name = db.Column(db.String(100))
+    price_per_unit = db.Column(db.Float)
+    systems = db.relationship('System', secondary=system_materials, backref='materials')
+
+class System(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    total_price = db.Column(db.Float)  # Stores the total price
 
 @app.route('/')
 def index():
-    material_companies = db.session.query(Material.company_name).distinct()
-    color_companies = db.session.query(Color.company_name).distinct()
-    combinations = session.get('combinations', [])
-    return render_template('index.html', material_companies=material_companies, color_companies=color_companies, combinations=combinations)
+    return render_template('index.html')
 
-@app.route('/add_combination', methods=['POST'])
-def add_combination():
-    material_id = request.form['material']
-    color_id = request.form['color']
-    material = db.session.get(Material, material_id)
-    color = db.session.get(Color, color_id)
-    if 'combinations' not in session:
-        session['combinations'] = []
-    session['combinations'].append({
-        'material_company': material.company_name,
-        'material_texture': material.material_texture,
-        'material_price': material.price,
-        'color_company': color.company_name,
-        'color': color.color,
-        'color_price': color.price
-    })
-    session.modified = True
-    return redirect(url_for('index'))
+@app.route('/materials')
+def materials():
+    materials = Material.query.all()
+    return render_template('materials.html', materials=materials)
 
-@app.route('/delete_combination/<int:index>', methods=['POST'])
-def delete_combination(index):
-    combinations = session.get('combinations', [])
-    if 0 <= index < len(combinations):
-        combinations.pop(index)
-    session['combinations'] = combinations
-    session.modified = True
-    return redirect(url_for('index'))
-
-@app.route('/calculate', methods=['GET', 'POST'])
-def calculate():
+@app.route('/add_material', methods=['GET', 'POST'])
+def add_material():
     if request.method == 'POST':
-        areas = request.form.getlist('area')
-        if 'total_costs' not in session:
-            session['total_costs'] = []
-        for i, combo in enumerate(session['combinations']):
-            material_cost = combo['material_price'] * float(areas[i])
-            color_cost = combo['color_price'] * float(areas[i])
-            total_cost = material_cost + color_cost
-            session['total_costs'].append({
-                'material_company': combo['material_company'],
-                'color_company': combo['color_company'],
-                'material_texture': combo['material_texture'],
-                'color': combo['color'],
-                'area': areas[i],
-                'total_cost': total_cost
-            })
-        session.modified = True
-        return redirect(url_for('calculate'))
-    total_costs = session.get('total_costs', [])
-    return render_template('calculate.html', combinations=session['combinations'], total_costs=total_costs)
+        name = request.form['name']
+        price_per_unit = float(request.form['price_per_unit'])
+        new_material = Material(name=name, price_per_unit=price_per_unit)
+        db.session.add(new_material)
+        db.session.commit()
+        return redirect(url_for('materials'))
+    return render_template('add_material.html')
 
-@app.route('/delete_calculation/<int:index>', methods=['POST'])
-def delete_calculation(index):
-    total_costs = session.get('total_costs', [])
-    if 0 <= index < len(total_costs):
-        total_costs.pop(index)
-    session['total_costs'] = total_costs
-    session.modified = True
-    return redirect(url_for('calculate'))
+@app.route('/delete_material', methods=['POST'])
+def delete_material():
+    ids = request.form.getlist('delete_ids')
+    for id in ids:
+        material = Material.query.get(int(id))
+        db.session.delete(material)
+    db.session.commit()
+    return redirect(url_for('materials'))
 
-@app.route('/get_materials/<company_name>')
-def get_materials(company_name):
-    materials = Material.query.filter_by(company_name=company_name).all()
-    return jsonify(materials=[{'id': m.id, 'texture': m.material_texture, 'price': m.price} for m in materials])
+@app.route('/systems')
+def systems():
+    systems_data = []
+    systems = System.query.all()
+    
+    for system in systems:
+        materials_with_ratios = []
+        total_price = 0.0
+        total_ratio = 0.0
+        for material in system.materials:
+            ratio = db.session.execute(
+                text("SELECT ratio FROM system_materials WHERE system_id=:sid AND material_id=:mid"),
+                {'sid': system.id, 'mid': material.id}
+            ).fetchone()[0]
+            total_ratio += ratio
+            total_price += material.price_per_unit * ratio
+            materials_with_ratios.append({'material': material.name, 'ratio': ratio})
+        
+        # Calculate price per unit (weighted average based on ratio)
+        price_per_unit = total_price / total_ratio if total_ratio else 0
+        
+        systems_data.append({
+            'id': system.id,
+            'name': system.name,
+            'price_per_unit': price_per_unit,
+            'materials': materials_with_ratios
+        })
 
-@app.route('/get_colors/<company_name>')
-def get_colors(company_name):
-    colors = Color.query.filter_by(company_name=company_name).all()
-    return jsonify(colors=[{'id': c.id, 'color': c.color, 'price': c.price} for c in colors])
+    return render_template('systems.html', systems=systems_data)
+
+@app.route('/add_system', methods=['GET', 'POST'])
+def add_system():
+    materials = Material.query.all()
+    if request.method == 'POST':
+        name = request.form['name']
+        ratios = {}
+        total_price = 0.0
+        for material in materials:
+            ratio = request.form.get(f'ratio_{material.id}')
+            if ratio:
+                ratio = float(ratio)
+                ratios[material] = ratio
+                total_price += material.price_per_unit * ratio
+        new_system = System(name=name, total_price=total_price)
+        db.session.add(new_system)
+        db.session.commit()
+        for material, ratio in ratios.items():
+            db.session.execute(system_materials.insert().values(
+                system_id=new_system.id,
+                material_id=material.id,
+                ratio=ratio
+            ))
+        db.session.commit()
+        return redirect(url_for('systems'))
+    return render_template('add_system.html', materials=materials)
+
+@app.route('/delete_system', methods=['POST'])
+def delete_system():
+    ids = request.form.getlist('delete_ids')
+    for id in ids:
+        system = System.query.get(int(id))
+        db.session.delete(system)
+    db.session.commit()
+    return redirect(url_for('systems'))
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)

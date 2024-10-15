@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Systems</h2>
+<a href="{{ url_for('add_system') }}">
+    <button>Add New System</button>
+</a>
+<form method="POST" action="{{ url_for('delete_system') }}">
+    <table>
+        <tr>
+            <th>Select</th>
+            <th>Name</th>
+            <th>Materials and Ratios</th>
+            <th>Price per Unit (per m²)</th>
+        </tr>
+        {% for system in systems %}
+        <tr>
+            <td><input type="checkbox" name="delete_ids" value="{{ system.id }}"></td>
+            <td>{{ system.name }}</td>
+            <td>
+                <ul>
+                {% for item in system.materials %}
+                    <li>{{ item.ratio }} × {{ item.material }}</li>
+                {% endfor %}
+                </ul>
+            </td>
+            <td>{{ system.price_per_unit | round(2) }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <input type="submit" value="Delete Selected Systems">
+</form>
+{% endblock %}
